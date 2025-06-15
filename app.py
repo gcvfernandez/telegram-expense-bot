@@ -6,6 +6,7 @@ import pytesseract
 from PIL import Image
 import os
 from dotenv import load_dotenv
+import base64
 load_dotenv()
 
 
@@ -13,6 +14,12 @@ app = Flask(__name__)
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 bot = telegram.Bot(token=BOT_TOKEN)
+
+# Write base64-decoded content into credentials.json at runtime
+b64_creds = os.environ.get("GOOGLE_CREDS_B64")
+if b64_creds:
+    with open("credentials.json", "wb") as f:
+        f.write(base64.b64decode(b64_creds))
 
 # Connect to Google Sheet
 def get_sheet():
