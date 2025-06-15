@@ -26,7 +26,11 @@ def get_sheet():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
     client = gspread.authorize(creds)
-    return client.open("MyExpenseSheet").sheet1
+
+    # Explicitly access the correct tab
+    sheet = client.open("MyExpenseSheet").worksheet("Sheet1")
+    return sheet
+
 
 # Handle manual text input
 def handle_text(message):
