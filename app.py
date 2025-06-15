@@ -30,8 +30,13 @@ def get_sheet():
 
 # Handle manual text input
 def handle_text(message):
+    print("Received message text:", message.text)
+    print("From user:", message.from_user.first_name)
+
     sheet = get_sheet()
     sheet.append_row([message.from_user.first_name, message.text])
+    print("✅ Row appended.")
+    
     bot.send_message(chat_id=message.chat.id, text="✅ Text expense logged.")
 
 # Handle image receipts
