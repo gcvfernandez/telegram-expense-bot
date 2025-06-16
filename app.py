@@ -18,7 +18,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 bot = telegram.Bot(token=BOT_TOKEN)
 
 # Your Telegram ID
-AUTHORIZED_USER_ID = 844001957  # ← Replace with your ID
+AUTHORIZED_USER_ID = 844001957
 
 def is_authorized(message):
     return message.from_user.id == AUTHORIZED_USER_ID
@@ -47,9 +47,10 @@ def handle_text(message):
         timezone = pytz.timezone("Asia/Manila")
         now = datetime.now(timezone)
 
-        date_str = now.strftime("%-m/%-d/%Y")
-        weekday = now.strftime("%A")
-        month_tab = now.strftime("%B %Y")
+        date_str = now.strftime("%-m/%-d/%Y")      # e.g., 6/17/2025
+        time_str = now.strftime("%I:%M %p")        # e.g., 08:24 PM
+        weekday = now.strftime("%A")               # e.g., Tuesday
+        month_tab = now.strftime("%B %Y")          # e.g., June 2025
 
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
@@ -62,7 +63,8 @@ def handle_text(message):
             template = sheet_file.worksheet("Sheet1")
             sheet = template.duplicate(new_sheet_name=month_tab)
 
-        sheet.append_row([date_str, weekday, description, amount])
+        # Append row with separate Date and Time columns
+        sheet.append_row([date_str, time_str, weekday, description, amount])
         print(f"✅ Row appended to '{month_tab}'.")
         bot.send_message(chat_id=message.chat.id, text=f"✅ Logged to {month_tab}: {description} - ₱{amount}")
 
