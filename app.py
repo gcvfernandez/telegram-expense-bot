@@ -98,6 +98,7 @@ def handle_image(message):
 @app.route("/webhook", methods=["POST"])
 def webhook():
     update = telegram.Update.de_json(request.get_json(force=True), bot)
+    print("User ID:", update.message.from_user.id)
 
     if update.message:
         if update.message.text:
