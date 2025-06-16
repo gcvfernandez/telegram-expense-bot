@@ -7,6 +7,7 @@ from PIL import Image
 import os
 from dotenv import load_dotenv
 import base64
+from datetime import datetime
 
 load_dotenv()
 
@@ -31,13 +32,32 @@ def get_sheet():
 
 # Handle manual text input
 def handle_text(message):
-    print("Received message text:", message.text)
-    print("From user:", message.from_user.first_name)
+    try:
+        raw_text = message.text.strip()
+        print("Received message text:", raw_text)
 
-    sheet = get_sheet()
-    sheet.append_row([message.from_user.first_name, message.text])
-    print("✅ Row appended.")
-    bot.send_message(chat_id=message.chat.id, text="✅ Text expense logged.")
+        # Split by ' - ' to get description and amount
+        if " - " not in raw_text:
+            bot.send_message(chat_id=message.chat.id, text="❌ Format must be: Description - Amount\nExample: Dinner at Carlo's Pizza - 500")
+            return
+
+        description, amount = [part.strip() for part in raw_text.split(" - ", 1)]
+
+        # Get current date and weekday
+        now = datetime.now()
+        date_str = now.strftime("%-m/%-d/%Y")  # e.g., 6/17/2025 (use %#m on Windows if needed)
+        weekday = now.strftime("%A")           # e.g., Tuesday
+
+        # Log to sheet
+        sheet = get_sheet()
+        sheet.append_row([date_str, weekday, description, amount])
+        print("✅ Row appended.")
+
+        bot.send_message(chat_id=message.chat.id, text=f"✅ Logged: {description} - ₱{amount}")
+
+    except Exception as e:
+        print("Text handling error:", e)
+        bot.send_message(chat_id=message.chat.id, text="❌ Something went wrong while logging your expense.")
 
 # Handle image input safely (with fallback)
 def handle_image(message):
