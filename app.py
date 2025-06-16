@@ -8,6 +8,7 @@ import os
 from dotenv import load_dotenv
 import base64
 from datetime import datetime
+import pytz
 
 load_dotenv()
 
@@ -22,38 +23,44 @@ if b64_creds:
     with open("credentials.json", "wb") as f:
         f.write(base64.b64decode(b64_creds))
 
-# Connect to Google Sheet
-def get_sheet():
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
-    client = gspread.authorize(creds)
-    sheet = client.open("MyExpenseSheet").worksheet("Sheet1")
-    return sheet
-
 # Handle manual text input
 def handle_text(message):
     try:
         raw_text = message.text.strip()
         print("Received message text:", raw_text)
 
-        # Split by ' - ' to get description and amount
         if " - " not in raw_text:
             bot.send_message(chat_id=message.chat.id, text="❌ Format must be: Description - Amount\nExample: Dinner at Carlo's Pizza - 500")
             return
 
         description, amount = [part.strip() for part in raw_text.split(" - ", 1)]
 
-        # Get current date and weekday
-        now = datetime.now()
-        date_str = now.strftime("%-m/%-d/%Y")  # e.g., 6/17/2025 (use %#m on Windows if needed)
-        weekday = now.strftime("%A")           # e.g., Tuesday
+        # Set timezone to Asia/Manila
+        timezone = pytz.timezone("Asia/Manila")
+        now = datetime.now(timezone)
 
-        # Log to sheet
-        sheet = get_sheet()
+        date_str = now.strftime("%-m/%-d/%Y")     # e.g., 6/17/2025
+        weekday = now.strftime("%A")              # e.g., Tuesday
+        month_tab = now.strftime("%B %Y")         # e.g., June 2025
+
+        # Access the spreadsheet
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+        client = gspread.authorize(creds)
+        sheet_file = client.open("MyExpenseSheet")
+
+        # Get or create the monthly worksheet
+        try:
+            sheet = sheet_file.worksheet(month_tab)
+        except gspread.exceptions.WorksheetNotFound:
+            template = sheet_file.worksheet("Sheet1")
+            sheet = template.duplicate(new_sheet_name=month_tab)
+
+        # Append the row
         sheet.append_row([date_str, weekday, description, amount])
-        print("✅ Row appended.")
+        print(f"✅ Row appended to '{month_tab}'.")
 
-        bot.send_message(chat_id=message.chat.id, text=f"✅ Logged: {description} - ₱{amount}")
+        bot.send_message(chat_id=message.chat.id, text=f"✅ Logged to {month_tab}: {description} - ₱{amount}")
 
     except Exception as e:
         print("Text handling error:", e)
@@ -76,7 +83,12 @@ def handle_image(message):
 
         os.remove(file_path)
 
-        sheet = get_sheet()
+        # Default fallback: still log in Sheet1
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+        client = gspread.authorize(creds)
+        sheet = client.open("MyExpenseSheet").worksheet("Sheet1")
+
         sheet.append_row([message.from_user.first_name, text])
         bot.send_message(chat_id=message.chat.id, text=f"🧾 Receipt logged:\n{text}")
 
