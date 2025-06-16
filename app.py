@@ -17,14 +17,23 @@ app = Flask(__name__)
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 bot = telegram.Bot(token=BOT_TOKEN)
 
+# Your Telegram ID
+AUTHORIZED_USER_ID = 844001957  # ← Replace with your ID
+
+def is_authorized(message):
+    return message.from_user.id == AUTHORIZED_USER_ID
+
 # Write base64-decoded content into credentials.json at runtime
 b64_creds = os.environ.get("GOOGLE_CREDS_B64")
 if b64_creds:
     with open("credentials.json", "wb") as f:
         f.write(base64.b64decode(b64_creds))
 
-# Handle manual text input
 def handle_text(message):
+    if not is_authorized(message):
+        bot.send_message(chat_id=message.chat.id, text="🚫 Unauthorized.")
+        return
+
     try:
         raw_text = message.text.strip()
         print("Received message text:", raw_text)
@@ -35,39 +44,37 @@ def handle_text(message):
 
         description, amount = [part.strip() for part in raw_text.split(" - ", 1)]
 
-        # Set timezone to Asia/Manila
         timezone = pytz.timezone("Asia/Manila")
         now = datetime.now(timezone)
 
-        date_str = now.strftime("%-m/%-d/%Y")     # e.g., 6/17/2025
-        weekday = now.strftime("%A")              # e.g., Tuesday
-        month_tab = now.strftime("%B %Y")         # e.g., June 2025
+        date_str = now.strftime("%-m/%-d/%Y")
+        weekday = now.strftime("%A")
+        month_tab = now.strftime("%B %Y")
 
-        # Access the spreadsheet
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
         client = gspread.authorize(creds)
         sheet_file = client.open("MyExpenseSheet")
 
-        # Get or create the monthly worksheet
         try:
             sheet = sheet_file.worksheet(month_tab)
         except gspread.exceptions.WorksheetNotFound:
             template = sheet_file.worksheet("Sheet1")
             sheet = template.duplicate(new_sheet_name=month_tab)
 
-        # Append the row
         sheet.append_row([date_str, weekday, description, amount])
         print(f"✅ Row appended to '{month_tab}'.")
-
         bot.send_message(chat_id=message.chat.id, text=f"✅ Logged to {month_tab}: {description} - ₱{amount}")
 
     except Exception as e:
         print("Text handling error:", e)
         bot.send_message(chat_id=message.chat.id, text="❌ Something went wrong while logging your expense.")
 
-# Handle image input safely (with fallback)
 def handle_image(message):
+    if not is_authorized(message):
+        bot.send_message(chat_id=message.chat.id, text="🚫 Unauthorized.")
+        return
+
     try:
         file_id = message.photo[-1].file_id
         file = bot.get_file(file_id)
@@ -83,7 +90,6 @@ def handle_image(message):
 
         os.remove(file_path)
 
-        # Default fallback: still log in Sheet1
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
         client = gspread.authorize(creds)
@@ -98,7 +104,6 @@ def handle_image(message):
 @app.route("/webhook", methods=["POST"])
 def webhook():
     update = telegram.Update.de_json(request.get_json(force=True), bot)
-    print("User ID:", update.message.from_user.id)
 
     if update.message:
         if update.message.text:
