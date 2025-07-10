@@ -18,7 +18,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 bot = telegram.Bot(token=BOT_TOKEN)
 
 # Your Telegram ID
-AUTHORIZED_USER_ID = 000000000
+AUTHORIZED_USER_ID = 844001957
 
 def is_authorized(message):
     return message.from_user.id == AUTHORIZED_USER_ID
